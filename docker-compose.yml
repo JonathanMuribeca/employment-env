@@ -1,0 +1,61 @@
+version: "3.8"
+services:
+  db:
+    image: postgres:12.4
+    container_name: db
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSGRESS_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      SERVICE_TAGS: dev
+      SERVICE_NAME: postgres
+    volumes:
+      - ./docker-compose/postgres/data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - backend
+  api:
+    build:
+      args:
+        user: api
+        uid: 1000
+      context: ./
+      dockerfile: docker-compose/php/Dockerfile
+    image: employment-backend
+    container_name: employment-api
+    restart: unless-stopped
+    working_dir: /var/www/
+    volumes:
+      - ./employment-api:/var/www/api
+    networks:
+      - backend
+  app:
+    image: node:14.8.0-slim
+    container_name: employment-app
+    volumes:
+      - ./employment-app:/usr/src/app
+    ports:
+      - 3000:3000
+    networks:
+      - frontend
+    command: node /usr/src/app/server.js
+  proxy:
+    image: nginx:1.17-alpine
+    container_name: proxy
+    restart: unless-stopped
+    ports:
+      - 8000:80
+    volumes:
+      - ./employment-api:/var/www/api
+      - ./employment-app:/var/www/app
+      - ./docker-compose/nginx:/etc/nginx/conf.d
+    networks:
+      - frontend
+      - backend
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
